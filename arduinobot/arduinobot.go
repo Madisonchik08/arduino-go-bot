@@ -97,20 +97,25 @@ func (c *Controller) sendAndReceive(cmd string) error {
 
 	expectedReply := "ready"
 	replyBuf := make([]byte, len(expectedReply))
-
-	_, err = io.ReadFull(c.port, replyBuf)
-	if err != nil {
-		return fmt.Errorf("ошибка при чтении ответа на команду '%s': %w", cmd, err)
+	done := make(chan error, 1)
+	go func() {
+		_, err := io.ReadFull(c.port, replyBuf)
+		if err == nil && string(replyBuf) == expectedReply {
+			done <- nil
+		} else {
+			done <- fmt.Errorf("no ready/error")
+		}
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			log.Printf("[Arduino TIMEOUT ERROR] %s", err)
+		}
+		return err
+	case <-time.After(700 * time.Millisecond):
+		log.Printf("[Arduino TIMEOUT ERROR] timeout waiting for 'ready' on cmd '%s'", cmd)
+		return fmt.Errorf("timeout waiting for Arduino ready")
 	}
-
-	reply := string(replyBuf)
-	log.Printf("Получен ответ: %s", reply)
-
-	if reply != expectedReply {
-		return fmt.Errorf("получен неожиданный ответ от Arduino: '%s'", reply)
-	}
-
-	return nil
 }
 
 // --- Реализация API ---

@@ -16,21 +16,22 @@ type Coord struct {
 
 type Finder struct {
 	PID         int
+	HWND        uintptr
 	Positions   []Coord
 	TargetColor Color
 }
 
 var (
-	user32      = syscall.NewLazyDLL("user32.dll")
-	gdi32       = syscall.NewLazyDLL("gdi32.dll")
-	enumWindows = user32.NewProc("EnumWindows")
+	user32                   = syscall.NewLazyDLL("user32.dll")
+	gdi32                    = syscall.NewLazyDLL("gdi32.dll")
+	enumWindows              = user32.NewProc("EnumWindows")
 	getWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
-	getDC      = user32.NewProc("GetDC")
-	releaseDC  = user32.NewProc("ReleaseDC")
-	getPixel   = gdi32.NewProc("GetPixel")
+	getDC                    = user32.NewProc("GetDC")
+	releaseDC                = user32.NewProc("ReleaseDC")
+	getPixel                 = gdi32.NewProc("GetPixel")
 )
 
-// findWindowByPID ищет главное окно процесса по PID
+// findWindowByPID ищет главное окно процесса по PID (не потокобезопасен).
 func findWindowByPID(pid int) (hwnd uintptr, err error) {
 	var foundHwnd uintptr
 	cb := syscall.NewCallback(func(h syscall.Handle, lparam uintptr) uintptr {
@@ -49,20 +50,29 @@ func findWindowByPID(pid int) (hwnd uintptr, err error) {
 	return 0, errors.New("window not found by PID")
 }
 
+// Вызвать только один раз из main.go!
+func (f *Finder) SetHWND() error {
+	hwnd, err := findWindowByPID(f.PID)
+	if err != nil {
+		return err
+	}
+	f.HWND = hwnd
+	return nil
+}
+
 func (f *Finder) SetPositions(coords []Coord) {
 	f.Positions = coords
 }
 
 func (f *Finder) Find() (found bool, at Coord, err error) {
-	hwnd, err := findWindowByPID(f.PID)
-	if err != nil {
-		return false, Coord{}, err
+	if f.HWND == 0 {
+		return false, Coord{}, errors.New("HWND is not set. Call SetHWND() first")
 	}
-	hdc, _, _ := getDC.Call(hwnd)
+	hdc, _, _ := getDC.Call(f.HWND)
 	if hdc == 0 {
 		return false, Coord{}, errors.New("getDC failed")
 	}
-	defer releaseDC.Call(hwnd, hdc)
+	defer releaseDC.Call(f.HWND, hdc)
 
 	for _, pos := range f.Positions {
 		colorRef, _, _ := getPixel.Call(hdc, uintptr(pos.X), uintptr(pos.Y))
