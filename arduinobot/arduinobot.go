@@ -35,7 +35,7 @@ func NewController(config Config) (*Controller, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Arduino найдена на порту: %s", portName)
+	log.Printf("Arduino found on port: %s", portName)
 
 	mode := &serial.Mode{
 		BaudRate: config.BaudRate,
@@ -43,11 +43,11 @@ func NewController(config Config) (*Controller, error) {
 
 	port, err := serial.Open(portName, mode)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось открыть порт %s: %w", portName, err)
+		return nil, fmt.Errorf("failed to open port %s: %w", portName, err)
 	}
 
 	if err := port.SetReadTimeout(config.ReadTimeout); err != nil {
-		return nil, fmt.Errorf("не удалось установить таймаут на чтение: %w", err)
+		return nil, fmt.Errorf("failed to set timeout for reading: %w", err)
 	}
 
 	time.Sleep(2 * time.Second)
@@ -69,14 +69,14 @@ func findArduinoPort(vid, pid string) (string, error) {
 			return port.Name, nil
 		}
 	}
-	return "", fmt.Errorf("устройство с VID=%s и PID=%s не найдено", vid, pid)
+	return "", fmt.Errorf("device with VID=%s and PID=%s not found", vid, pid)
 }
 
 // Close корректно закрывает соединение с портом.
 func (c *Controller) Close() {
 	if c.port != nil {
 		c.port.Close()
-		log.Println("Соединение с портом закрыто.")
+		log.Println("Connection to port closed.")
 	}
 }
 
@@ -86,14 +86,14 @@ func (c *Controller) sendAndReceive(cmd string) error {
 	defer c.mu.Unlock()
 
 	if err := c.port.ResetInputBuffer(); err != nil {
-		return fmt.Errorf("не удалось очистить входной буфер: %w", err)
+		return fmt.Errorf("failed to clear input buffer: %w", err)
 	}
 
 	_, err := c.port.Write([]byte(cmd))
 	if err != nil {
-		return fmt.Errorf("ошибка при отправке команды '%s': %w", cmd, err)
+		return fmt.Errorf("error sending command '%s': %w", cmd, err)
 	}
-	log.Printf("Отправлена команда: %s", cmd)
+	log.Printf("Command sent: %s", cmd)
 
 	expectedReply := "ready"
 	replyBuf := make([]byte, len(expectedReply))
@@ -142,7 +142,7 @@ func (c *Controller) KeyUp(code int) error   { return c.sendAndReceive("4" + str
 func (c *Controller) MouseMove(targetX, targetY int) error {
 	currentX, currentY, err := getMousePosition()
 	if err != nil {
-		return fmt.Errorf("не удалось получить текущую позицию мыши: %w", err)
+		return fmt.Errorf("failed to get current mouse position: %w", err)
 	}
 	deltaX := targetX - currentX
 	deltaY := targetY - currentY

@@ -54,7 +54,7 @@ func findWindowByPID(pid int) (hwnd uintptr, err error) {
 func (f *Finder) SetHWND() error {
 	hwnd, err := findWindowByPID(f.PID)
 	if err != nil {
-		return err
+		return errors.New("Game window not found. Please start the game and check the process PID.")
 	}
 	f.HWND = hwnd
 	return nil
@@ -66,11 +66,11 @@ func (f *Finder) SetPositions(coords []Coord) {
 
 func (f *Finder) Find() (found bool, at Coord, err error) {
 	if f.HWND == 0 {
-		return false, Coord{}, errors.New("HWND is not set. Call SetHWND() first")
+		return false, Coord{}, errors.New("Unable to access game window. Try restarting your bot.")
 	}
 	hdc, _, _ := getDC.Call(f.HWND)
 	if hdc == 0 {
-		return false, Coord{}, errors.New("getDC failed")
+		return false, Coord{}, errors.New("Unable to access game window. Try restarting your bot.")
 	}
 	defer releaseDC.Call(f.HWND, hdc)
 

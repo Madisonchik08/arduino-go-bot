@@ -17,7 +17,7 @@ func main() {
 	}
 	controller, err := arduinobot.NewController(prevConfig)
 	if err != nil {
-		log.Fatalf("Ошибка инициализации Arduino: %v", err)
+		log.Fatalf("Error initializing Arduino: %v", err)
 	}
 	defer controller.Close()
 
