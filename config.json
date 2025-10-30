@@ -1,0 +1,17 @@
+{
+  "processName": "Project Revenant.exe",
+  "points": [
+    {
+      "X": 960,
+      "Y": 592
+    }
+  ],
+  "colorR": 255,
+  "colorG": 0,
+  "colorB": 0,
+  "hotkey": "S",
+  "delayMs": 200,
+  "delayMsJitter": 50,
+  "delayF2Ms": 200,
+  "delayF2MsJitter": 50
+}

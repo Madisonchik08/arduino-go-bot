@@ -22,14 +22,17 @@ type Finder struct {
 }
 
 var (
-	user32                   = syscall.NewLazyDLL("user32.dll")
-	gdi32                    = syscall.NewLazyDLL("gdi32.dll")
-	enumWindows              = user32.NewProc("EnumWindows")
+	user32      = syscall.NewLazyDLL("user32.dll")
+	gdi32       = syscall.NewLazyDLL("gdi32.dll")
+	enumWindows = user32.NewProc("EnumWindows")
 	getWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
-	getDC                    = user32.NewProc("GetDC")
-	releaseDC                = user32.NewProc("ReleaseDC")
-	getPixel                 = gdi32.NewProc("GetPixel")
+	getDC      = user32.NewProc("GetDC")
+	releaseDC  = user32.NewProc("ReleaseDC")
+	getPixel   = gdi32.NewProc("GetPixel")
+	getWindowRect = user32.NewProc("GetWindowRect")
 )
+
+type rect struct { Left, Top, Right, Bottom int32 }
 
 // findWindowByPID ищет главное окно процесса по PID (не потокобезопасен).
 func findWindowByPID(pid int) (hwnd uintptr, err error) {
@@ -54,23 +57,29 @@ func findWindowByPID(pid int) (hwnd uintptr, err error) {
 func (f *Finder) SetHWND() error {
 	hwnd, err := findWindowByPID(f.PID)
 	if err != nil {
-		return errors.New("Game window not found. Please start the game and check the process PID.")
+		return err
 	}
 	f.HWND = hwnd
 	return nil
 }
 
-func (f *Finder) SetPositions(coords []Coord) {
-	f.Positions = coords
+func (f *Finder) TopLeft() (int32, int32, error) {
+	if f.HWND == 0 { return 0,0, errors.New("HWND is not set") }
+	var r rect
+	rv, _, _ := getWindowRect.Call(f.HWND, uintptr(unsafe.Pointer(&r)))
+	if rv == 0 { return 0,0, errors.New("GetWindowRect failed") }
+	return r.Left, r.Top, nil
 }
+
+func (f *Finder) SetPositions(coords []Coord) { f.Positions = coords }
 
 func (f *Finder) Find() (found bool, at Coord, err error) {
 	if f.HWND == 0 {
-		return false, Coord{}, errors.New("Unable to access game window. Try restarting your bot.")
+		return false, Coord{}, errors.New("HWND is not set. Call SetHWND() first")
 	}
 	hdc, _, _ := getDC.Call(f.HWND)
 	if hdc == 0 {
-		return false, Coord{}, errors.New("Unable to access game window. Try restarting your bot.")
+		return false, Coord{}, errors.New("getDC failed")
 	}
 	defer releaseDC.Call(f.HWND, hdc)
 
